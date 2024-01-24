@@ -19,8 +19,16 @@ module.exports = function(RED) {
             for(let i = 0; i < node.conn.outputData.length; i++) {
                 binaryString = ("00000000"+ node.conn.outputData[i].toString(2)).slice(-8) + binaryString
             }
+
             
-            nvString = ("0".repeat(n.bitSize)+ nv.toString(2)).slice(-(n.bitSize))
+            if (Number.isInteger(nv)) {
+              nvString = ("0".repeat(n.bitSize)+ nv.toString(2)).slice(-(n.bitSize))
+            } else if (!Number.isNaN(nv) && !Number.isInteger(nv))  {
+              nvString = floatAsBinaryString(nv, n.bitSize);
+            } else {
+              console.log("Error: Must use 32 or 64 bit integers")
+              return Null
+            }
 
             binaryString = binaryString.substring(0, binaryString.length - n.bitSize - (8 * n.byteOffset) - n.bitOffset) + nvString.toString() + binaryString.substring(binaryString.length - (8 * n.byteOffset) - n.bitOffset, binaryString.length);
             
@@ -57,3 +65,32 @@ module.exports = function(RED) {
     RED.nodes.registerType("eip-io out", OutNode);
 
 };
+
+function floatAsBinaryString(floatNumber, bitSize) {
+  let numberAsBinaryString = '';
+
+  const arrayBuffer = new ArrayBuffer(bitSize/8);
+  const dataView = new DataView(arrayBuffer);
+
+  const byteOffset = 0;
+  const littleEndian = false;
+
+  if (bitSize/8 === 4) {
+    dataView.setFloat32(byteOffset, floatNumber, littleEndian);
+  } else if (bitSize/8 === 8){
+    dataView.setFloat64(byteOffset, floatNumber, littleEndian);
+  } else {
+    console.log("ERROR needs to be 32 or 64");
+     return Null;
+  }
+
+  for (let byteIndex = 0; byteIndex < bitSize/8; byteIndex += 1) {
+    let bits = dataView.getUint8(byteIndex).toString(2);
+    if (bits.length < 8) {
+      bits = new Array(8 - bits.length).fill('0').join('') + bits;
+    }
+    numberAsBinaryString += bits;
+  }
+
+  return numberAsBinaryString;
+}
